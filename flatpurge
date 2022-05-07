@@ -1,0 +1,155 @@
+#!/bin/bash
+
+trap 'exit_trap' SIGINT
+
+appdir="$HOME/.var/app"
+cd "$appdir"
+
+if [ ! "$(command -v flatpak)" ]; then
+	echo "flatpak isn't in \$PATH!" 1>&2
+	exit 1
+fi
+
+Y=() # Installed Flatpaks
+N=() # Missing Flatpaks
+
+# Argument Switches
+ARG_DELETE="" # Can Delete?
+ARG_FORCE="" # Delete without prompting
+
+exit_trap() {
+	wait-spinner q 2>&1 > /dev/null
+	tput cnorm
+	echo ""
+	exit
+}
+
+help_line() {
+	printf "  %-28s %s\n" "$1" "$2"
+}
+
+help_msg() {
+	echo -e "\e[1mflatpurge\e[22m: Delete residual flatpak user data\n"
+
+	echo -e "\e[1mUSAGE\e[22m"
+	echo -e "flatpurge [option]\n"
+	echo -e "\e[1mOPTIONS\e[22m"
+
+	help_line "-d, --delete" "Allow flatpurge to delete"
+	help_line "-f, --force" "Delete without prompting (DANGEROUS)"
+	help_line "-?, --help" "Display this message"
+
+	echo -e "\n\n\e[1mYour Flatpak User Data Directory\e[22m"
+	echo "$appdir"
+
+}
+
+wait-spinner() {
+	if [ "$1" = "bg" ]; then
+		local delay="0.1"
+		tput sc
+		tput civis
+		while true; do
+			echo -n "|"
+			sleep $delay
+			tput cub1
+			echo -n "/"
+			sleep $delay
+			tput cub1
+			echo -n "—"
+			sleep $delay
+			tput cub1
+			sleep 0.2
+			echo -n '\'
+			tput cub1
+			sleep $delay
+		done
+	elif [ "$1" = "q" ]; then
+		kill %wait-spinner 2>&1 > /dev/null
+		tput rc
+		tput el
+		tput cnorm
+	else
+		wait-spinner bg &
+	fi
+}
+
+scan_dirs() {
+	echo -n "Scanning For Left Over Flatpak User Directories... "
+	wait-spinner
+	for x in *; do
+		[ -d "$x" ] || continue
+		if [ ! "$(flatpak info "$x" 2>&1 > /dev/null)" ]; then
+			Y+=( "$x" )
+		else
+			N+=( "$x" )
+		fi
+	done
+	wait-spinner q
+	echo -e "Complete!\n"
+}
+
+purge_prompt() {
+	local choice
+	for app in ${N[@]}; do
+
+		if [ "$ARG_FORCE" ]; then
+			echo -e "\e[31;1mDELETING\e[37;22m residual user data for \e[1m$app\e[22m"
+			#rm -rf -- "$appdir/$app"
+		else
+			echo -en "\e[31;1mDELETE\e[37;22m residual user data for \e[1m$app\e[22m ? (Y/N) "
+				read -rsn1 choice
+				echo ""
+			if [ "$choice" = "y" ]||[ "$choice" = "Y" ]; then
+				echo -e "\e[2mRemoving... \e[22m"
+				rm -rf -- "$appdir/$app"
+			fi
+		fi
+	done
+}
+
+purge_list() {
+	echo "The following apps are seemingly not installed; Residual user data can be deleted:"
+	for app in ${N[@]}; do
+		echo " * $app"
+	done
+	echo ""
+	echo -e "\e[2mPass the -d argument to enable deletion\e[22m"
+}
+
+parse_arguements() {
+	for arg; do
+		case "$arg" in
+			-f|--force)
+				ARG_FORCE=true
+				;;
+			-d|--delete)
+				ARG_DELETE=true
+				;;
+			-fd|-df)
+				ARG_FORCE=true
+				ARG_DELETE=true
+				;;
+			-?|--help)
+				help_msg
+				exit 0
+				;;
+			*)
+				echo "Invalid argument. See \"--help\"" 1>&2
+				exit 1
+				;;
+		esac
+	done
+}
+
+main() {
+	parse_arguements "$@"
+	scan_dirs
+	if [ "$ARG_DELETE" ]; then
+		purge_prompt
+	else
+		purge_list
+	fi
+}
+
+main "$@"
