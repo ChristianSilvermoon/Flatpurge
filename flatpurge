@@ -90,6 +90,11 @@ scan_dirs() {
 }
 
 purge_prompt() {
+	if [ "${#N[@]}" = "0" ]; then
+		echo "You have no left over app directories!"
+		return
+	fi
+	
 	local choice
 	for app in ${N[@]}; do
 
@@ -109,6 +114,11 @@ purge_prompt() {
 }
 
 purge_list() {
+	if [ "${#N[@]}" = "0" ]; then
+		echo "You have no left over app directories!"
+		return
+	fi
+
 	echo "The following apps are seemingly not installed; Residual user data can be deleted:"
 	for app in ${N[@]}; do
 		echo " * $app"
