@@ -104,7 +104,7 @@ purge_prompt() {
 			echo -en "\e[31;1mDELETE\e[37;22m residual user data for \e[1m$app\e[22m ? (Y/N) "
 				read -rsn1 choice
 				echo ""
-			if [ "$choice" = "y" ]||[ "$choice" = "Y" ]; then
+			if [ "${choice,,}" = "y" ]; then
 				echo -e "\e[2mRemoving... \e[22m"
 				rm -rf -- "$appdir/$app"
 			fi
