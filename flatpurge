@@ -59,7 +59,6 @@ wait-spinner() {
 			echo -n "—"
 			sleep $delay
 			tput cub1
-			sleep 0.2
 			echo -n '\'
 			tput cub1
 			sleep $delay
